@@ -162,10 +162,23 @@ $classmap = $config['classmap'];
 // print_r($names);
 // dumpNode($names);
 
+function getClassNamesFromTypeHinting($tree) {
+	return array_reduce(
+		getNodesByType($tree, 'PHPParser_Node_Param'),
+		function($out, $param) {
+			if ($param->type instanceof PHPParser_Node_Name) {
+				$out[] = implode('\\', $param->type->parts);
+			}
+			return $out; },
+		array());
+}
+
+
 // What do we depend on?
 $names = getClassNamesFromNewExpressions($tree);
 $names = array_merge($names, getClassNamesFromClassInheritance($tree));
 $names = array_merge($names, getClassNamesFromStaticCalls($tree));
+$names = array_merge($names, getClassNamesFromTypeHinting($tree));
 
 // Filter those to ignore
 $names = array_unique($names);
