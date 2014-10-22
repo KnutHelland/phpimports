@@ -134,6 +134,13 @@ function getClassNamesFromClassInheritance($tree) {
 	return $names;
 }
 
+function getClassNamesFromStaticCalls($tree) {
+	return array_map(
+		function($call) {
+			return implode('\\', $call->class->parts); },
+		getNodesByType($tree, 'PHPParser_Node_Expr_StaticCall'));
+}
+
 // var_dump(getSourceTree(file_get_contents(__FILE__)));
 
 /* var_dump(dumpNode(getNodesByTypes($tree, array( */
@@ -157,9 +164,10 @@ $classmap = $config['classmap'];
 // What do we depend on?
 $names = getClassNamesFromNewExpressions($tree);
 $names = array_merge($names, getClassNamesFromClassInheritance($tree));
+$names = array_merge($names, getClassNamesFromStaticCalls($tree));
 $names = array_filter($names, function($name) use ($ignore) { return !in_array($name, $ignore); });
 
-$names = array_merge($names, array_map(function($call) { return implode('\\', $call->class->parts); }, getNodesByType($tree, 'PHPParser_Node_Expr_StaticCall')));
+
 
 // Only which exists in the classmap:
 $names = array_reduce($names, function($output, $name) use ($classmap) {
