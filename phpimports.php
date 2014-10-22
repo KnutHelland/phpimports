@@ -9,6 +9,7 @@ $ignore = array_merge($ignore, get_declared_classes());
 $ignore = array_merge($ignore, get_declared_interfaces());
 $ignore = array_merge($ignore, get_declared_traits());
 $ignore = array_merge($ignore, array_keys(get_defined_constants()));
+$ignore[] = 'parent';
 
 $inputFile = $argv[1];
 
@@ -165,29 +166,70 @@ $classmap = $config['classmap'];
 $names = getClassNamesFromNewExpressions($tree);
 $names = array_merge($names, getClassNamesFromClassInheritance($tree));
 $names = array_merge($names, getClassNamesFromStaticCalls($tree));
+
+// Filter those to ignore
+$names = array_unique($names);
 $names = array_filter($names, function($name) use ($ignore) { return !in_array($name, $ignore); });
 
+/**
+ * Returns array:
+ *
+ * array(
+ *     'needed' => array(
+ *         'MyClass' => array(
+ *             'Vendor/Lib/MyClass',
+ *             'Andor/Lab/MyClass)),
+ *     'keep' => array(
+ *         'SomeClass' => 'Path/To/SomeClass'),
+ *     'delete' => array(
+ *         'NotUsedAnywhere' => 'Path/to/NotUsedAnywhere'));
+ */
 
 
-// Only which exists in the classmap:
-$names = array_reduce($names, function($output, $name) use ($classmap) {
+/**
+ * Returns list of candidates from classmap for each of the names
+ */
+function getCandidates($names, $classmap) {
+	$output = array();
 
-	if (!substr($name, 0, 1) == '\\') {
-		$name = '\\'.$name;
-	}
+	foreach ($names as $name) {
+		$parts = explode('\\', $name);
 
-	foreach(array_keys($classmap) as $class) {
-		if (substr($class, 0 - strlen($name)) == $name) {
-			if (strstr($class, '\\')) {
-				$output[] = $class;
-				return $output;
+		$candidates = array();
+
+		foreach(array_keys($classmap) as $class) {
+
+			$classParts = explode('\\', $class);
+			if (count($classParts) <= 1) {
+				// Skip classes in global namespace
+				continue;
+			}
+
+
+			$matches = true;
+			for ($i = count($parts); $i > 0 ; $i--) {
+				if ($classParts[ (count($classParts) - $i) ] != $parts[count($parts) - $i]) {
+					$matches = false;
+					break;
+				}
+			}
+
+			if ($matches) {
+				$candidates[] = implode('\\', array_slice($classParts, 0, count($classParts) - count($parts) + 1));
 			}
 		}
+
+		$output[$name] = $candidates;
 	}
 	return $output;
+}
 
-}, array());
-$names = array_unique($names);
+
+$names = getCandidates($names, $classmap);
+$names = array_map(
+	function($name) { return $name[0]; },
+	$names);
+
 
 // And what is already used?
 $uses = array_reduce(getUseStatements($tree), function($output, $use) {
@@ -197,6 +239,8 @@ $uses = array_reduce(getUseStatements($tree), function($output, $use) {
 	return $output;
 }, array());
 // print_r($uses);
+
+
 
 $toUse = array_diff($names, $uses);
 
