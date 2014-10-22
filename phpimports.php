@@ -39,16 +39,6 @@ function getSourceTree($src) {
 }
 
 /**
- * Returns all use statements
- *
- * This cannot use getNodesByType because we only want use-statements
- * from the first level. The other use statements are "use trait".
- */
-function getUseStatements($tree) {
-	return array_filter($tree, function($node) { return $node instanceof PHPParser_Node_Stmt_Use; });
-}
-
-/**
  * Childs of returned nodes are not evaluated
  */
 function getNodesByType($tree, $nodeType) {
@@ -80,6 +70,27 @@ function getNodesByPred($tree, $pred) {
 	return $nodes;
 }
 
+/**
+ * Traverses the node tree. If the callback returns false on a node,
+ * then it will not walk into its children
+ */
+function traverseNodes($tree, $closure) {
+	foreach ($tree as $node) {
+		$visitChildren = true;
+		if (is_object($node)) {
+			if ($closure($node) === false) {
+				$visitChildren = false;
+			}
+		}
+		if ($visitChildren && ($node instanceof Traversable || is_array($node))) {
+			traverseNodes($node, $closure);
+		}
+	}
+}
+
+function colorGreen($input) {
+	return "\033[32m".$input."\033[39m";
+}
 
 function dumpNode($tree, $level = 0) {
 	foreach ($tree as $key => $node) {
@@ -89,7 +100,7 @@ function dumpNode($tree, $level = 0) {
 		}
 
 		if (is_object($node)) {
-			echo str_repeat(" ", $level) . $k . get_class($node) . "\n";
+			echo str_repeat(" ", $level) . $k . colorGreen(get_class($node)) . "\n";
 		} else if (!is_array($node)) {
 			echo str_repeat(" ", $level) . $k . print_r($node, true) . "\n";
 		} else {
@@ -173,7 +184,6 @@ function getClassNamesFromTypeHinting($tree) {
 		array());
 }
 
-
 // What do we depend on?
 $names = getClassNamesFromNewExpressions($tree);
 $names = array_merge($names, getClassNamesFromClassInheritance($tree));
@@ -239,13 +249,14 @@ function getCandidates($names, $classmap) {
 
 
 $names = getCandidates($names, $classmap);
+$namesWithCandidates = $names;
 $names = array_map(
 	function($name) { return $name[0]; },
 	$names);
 
 
 // And what is already used?
-$uses = array_reduce(getUseStatements($tree), function($output, $use) {
+$uses = array_reduce(getNodesByType($tree, 'PHPParser_Node_Stmt_Use'), function($output, $use) {
 	foreach ($use->uses as $u) {
 		$output[] = implode('\\', $u->name->parts);
 	}
@@ -253,7 +264,59 @@ $uses = array_reduce(getUseStatements($tree), function($output, $use) {
 }, array());
 // print_r($uses);
 
+class InvalidSourceException extends Exception {}
 
+/**
+ * Want to validate that all use-statements comes after each other,
+ * and that there is maximum one namespace in the file, and that the
+ * namespace is the first statement in the file.
+ */
+function validateFile($tree) {
+	$namespaces = getNodesByType($tree, 'PHPParser_Node_Stmt_Namespace');
+	if (count($namespaces) == 1) {
+		if ($namespaces[0] != $tree[0]) {
+			throw new InvalidSourceException('The namespace is not declared in top of file');
+		}
+	} else if (count($namespaces) > 1) {
+		throw new InvalidSourceException('Multiple namespaces in file');
+	}
+	
+
+	$data = array(
+		'beginUses' => null,
+		'beginLine' => null,
+		'endUses' => null,
+		'endLine' => null
+	);
+	$i = 0;
+	traverseNodes($tree, function($node) use (&$data, &$i) {
+		$return = true;
+		if ($node instanceof PHPParser_Node_Stmt_Use) {
+			if (is_null($data['beginUses'])) {
+				$data['beginUses'] = $i;
+				$data['beginLine'] = $node->getAttribute('startLine');
+			} else if (!is_null($data['endUses'])) {
+				throw new InvalidSourceException('The use statements are not in one section');
+			}
+			$return = false;
+		} else {
+			if (!is_null($data['beginUses']) && is_null($data['endUses'])) {
+				$data['endUses'] = $i-1;
+				$data['endLine'] = $node->getAttribute('startLine')-1;
+			}
+		}
+		$i++;
+		return $return;
+	});
+
+	return array(
+		'begin' => $data['beginLine'],
+		'end' => $data['endLine']
+	);
+}
+
+// dumpNode($tree); exit();
+// print_r(validateFile($tree)); exit();
 
 $toUse = array_diff($names, $uses);
 
@@ -263,13 +326,74 @@ foreach ($toUse as $use) {
 }
 
 $line = 2;
-$uses = getUseStatements($tree);
-if (count($uses) > 0) {
-	$line = $uses[0]->getAttribute('startLine') - 1;
+$uses = getNodesByType($tree, 'PHPParser_Node_Stmt_Use');
+$uses = array_map(
+	function($node) {
+		return implode('\\', $node->uses[0]->name->parts); },
+	$uses);
+
+
+foreach (array_keys($namesWithCandidates) as $name) {
+	$parts = explode('\\', $name);
+
+	$candidates = array();
+
+	foreach($uses as $class) {
+
+		$classParts = explode('\\', $class);
+		if (count($classParts) <= 1) {
+			// Skip classes in global namespace
+			continue;
+		}
+
+
+		$matches = true;
+		for ($i = count($parts); $i > 0 ; $i--) {
+			if ($classParts[ (count($classParts) - $i) ] != $parts[count($parts) - $i]) {
+				$matches = false;
+				break;
+			}
+		}
+
+		if ($matches) {
+			$candidates[] = implode('\\', array_slice($classParts, 0, count($classParts) - count($parts) + 1));
+		}
+	}
+
+	if (count($candidates) > 0) {
+		$namesWithCandidates[$name] = $candidates[0];
+	}
+}
+
+// Select most appropriate candidates:
+foreach ($namesWithCandidates as $name => &$candidate) {
+	if (is_array($candidate)) {
+		if (count($candidate) == 0) {
+			$candidate = '/ /* unknown dependency: '.$name.' */';
+		} else {
+			$candidate = $candidate[0];
+		}
+	}
+}
+sort($namesWithCandidates);
+// print_r($namesWithCandidates); exit();
+
+
+/* if (count($uses) > 0) { */
+/* 	$line = $uses[0]->getAttribute('startLine') - 1; */
+/* } */
+
+$output = '';
+foreach ($namesWithCandidates as $name) {
+	$output .= 'use '.$name.";\n";
 }
 
 $src = file($inputFile);
-array_splice($src, $line, 0, $output);
+$data = validateFile($tree);
+if (is_null($data['begin'])) {
+	$data['begin'] = $data['end'] = 3;
+}
+array_splice($src, $data['begin']-1, ($data['end'] - $data['begin']), $output);
 
 if ($argv[2] == '-w') {
 	file_put_contents($inputFile, implode('', $src));
