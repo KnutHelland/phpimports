@@ -106,6 +106,12 @@ function dumpNode($tree, $level = 0) {
 
 $tree = getSourceTree(file_get_contents($inputFile));
 
+function getClassNamesFromNewExpressions($tree) {
+	return array_map(
+		function($node) {
+			return implode('\\', $node->class->parts); },
+		getNodesByType($tree, 'PHPParser_Node_Expr_New'));
+}
 
 // var_dump(getSourceTree(file_get_contents(__FILE__)));
 
@@ -128,8 +134,7 @@ $classmap = $config['classmap'];
 // dumpNode($names);
 
 // What do we depend on?
-$names = getNodesByType($tree, 'PHPParser_Node_Expr_New');
-$names = array_map(function($node) { return implode('\\', $node->class->parts); }, $names);
+$names = getClassNamesFromNewExpressions($tree);
 $names = array_filter($names, function($name) use ($ignore) { return !in_array($name, $ignore); });
 
 $names = array_merge($names, array_map(function ($class) { return implode('\\', $class->extends->parts); }, getNodesByType($tree, 'PHPParser_Node_Stmt_Class')));
