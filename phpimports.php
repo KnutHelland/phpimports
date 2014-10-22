@@ -113,6 +113,27 @@ function getClassNamesFromNewExpressions($tree) {
 		getNodesByType($tree, 'PHPParser_Node_Expr_New'));
 }
 
+function getClassNamesFromClassInheritance($tree) {
+	$names = array_map(
+		function ($class) {
+			return implode('\\', $class->extends->parts); },
+		getNodesByType($tree, 'PHPParser_Node_Stmt_Class'));
+
+	$names = array_merge(
+		$names,
+		array_reduce(
+			getNodesByType($tree, 'PHPParser_Node_Stmt_Class'),
+			function ($out, $class) {
+				return array_merge(
+					$out,
+					array_map(
+						function($name) {
+							return implode('\\', $name->parts); },
+						$class->implements)); },
+			array()));
+	return $names;
+}
+
 // var_dump(getSourceTree(file_get_contents(__FILE__)));
 
 /* var_dump(dumpNode(getNodesByTypes($tree, array( */
@@ -135,21 +156,9 @@ $classmap = $config['classmap'];
 
 // What do we depend on?
 $names = getClassNamesFromNewExpressions($tree);
+$names = array_merge($names, getClassNamesFromClassInheritance($tree));
 $names = array_filter($names, function($name) use ($ignore) { return !in_array($name, $ignore); });
 
-$names = array_merge($names, array_map(function ($class) { return implode('\\', $class->extends->parts); }, getNodesByType($tree, 'PHPParser_Node_Stmt_Class')));
-$names = array_merge(
-	$names,
-	array_reduce(
-		getNodesByType($tree, 'PHPParser_Node_Stmt_Class'),
-		function ($out, $class) {
-			return array_merge(
-				$out,
-				array_map(
-					function($name) {
-						return implode('\\', $name->parts); },
-					$class->implements)); },
-		array()));
 $names = array_merge($names, array_map(function($call) { return implode('\\', $call->class->parts); }, getNodesByType($tree, 'PHPParser_Node_Expr_StaticCall')));
 
 // Only which exists in the classmap:
