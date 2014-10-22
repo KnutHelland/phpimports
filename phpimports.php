@@ -39,6 +39,9 @@ function getSourceTree($src) {
 
 /**
  * Returns all use statements
+ *
+ * This cannot use getNodesByType because we only want use-statements
+ * from the first level. The other use statements are "use trait".
  */
 function getUseStatements($tree) {
 	return array_filter($tree, function($node) { return $node instanceof PHPParser_Node_Stmt_Use; });
@@ -165,7 +168,7 @@ $names = array_reduce($names, function($output, $name) use ($classmap) {
 $names = array_unique($names);
 
 // And what is already used?
-$uses = array_reduce(getNodesByType($tree, 'PHPParser_Node_Stmt_Use'), function($output, $use) {
+$uses = array_reduce(getUseStatements($tree), function($output, $use) {
 	foreach ($use->uses as $u) {
 		$output[] = implode('\\', $u->name->parts);
 	}
@@ -181,7 +184,7 @@ foreach ($toUse as $use) {
 }
 
 $line = 2;
-$uses = getNodesByType($tree, 'PHPParser_Node_Stmt_Use');
+$uses = getUseStatements($tree);
 if (count($uses) > 0) {
 	$line = $uses[0]->getAttribute('startLine') - 1;
 }
