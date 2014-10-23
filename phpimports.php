@@ -184,6 +184,23 @@ function getClassNamesFromTypeHinting($tree) {
 		array());
 }
 
+
+function getClassesFromNamespace($tree, $classmap) {
+	$toReturn = array();
+	$namespace = getNodesByType($tree, 'PHPParser_Node_Stmt_Namespace');
+	if (count($namespace) > 0) {
+		$namespace = implode('\\', $namespace[0]->name->parts);
+		foreach (array_keys($classmap) as $class) {
+			if (substr($class, 0, strlen($namespace)) == $namespace) {
+				$toReturn[] = substr($class, strlen($namespace)+1);
+			}
+		}
+	}
+
+	return $toReturn;
+}
+
+
 // What do we depend on?
 $names = getClassNamesFromNewExpressions($tree);
 $names = array_merge($names, getClassNamesFromClassInheritance($tree));
@@ -193,6 +210,9 @@ $names = array_merge($names, getClassNamesFromTypeHinting($tree));
 // Filter those to ignore
 $names = array_unique($names);
 $names = array_filter($names, function($name) use ($ignore) { return !in_array($name, $ignore); });
+$fromNamespace = getClassesFromNamespace($tree, $classmap);
+// print_r($fromNamespace); exit();
+$names = array_filter($names, function($name) use ($fromNamespace) { return !in_array($name, $fromNamespace); });
 
 /**
  * Returns array:
