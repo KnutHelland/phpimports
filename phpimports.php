@@ -10,6 +10,7 @@ $ignore = array_merge($ignore, get_declared_interfaces());
 $ignore = array_merge($ignore, get_declared_traits());
 $ignore = array_merge($ignore, array_keys(get_defined_constants()));
 $ignore[] = 'parent';
+$ignore[] = 'self';
 
 $inputFile = $argv[1];
 
@@ -211,7 +212,6 @@ $names = array_merge($names, getClassNamesFromTypeHinting($tree));
 $names = array_unique($names);
 $names = array_filter($names, function($name) use ($ignore) { return !in_array($name, $ignore); });
 $fromNamespace = getClassesFromNamespace($tree, $classmap);
-// print_r($fromNamespace); exit();
 $names = array_filter($names, function($name) use ($fromNamespace) { return !in_array($name, $fromNamespace); });
 
 /**
