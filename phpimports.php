@@ -258,7 +258,9 @@ function getCandidates($names, $classmap) {
 			}
 
 			if ($matches) {
-				$candidates[] = implode('\\', array_slice($classParts, 0, count($classParts) - count($parts) + 1));
+				if ((count($classParts) - count($parts) + 1) > 1) {
+					$candidates[] = implode('\\', array_slice($classParts, 0, count($classParts) - count($parts) + 1));
+				}
 			}
 		}
 
@@ -389,7 +391,7 @@ foreach (array_keys($namesWithCandidates) as $name) {
 foreach ($namesWithCandidates as $name => &$candidate) {
 	if (is_array($candidate)) {
 		if (count($candidate) == 0) {
-			$candidate = '/ /* unknown dependency: '.$name.' */';
+			$candidate = '';
 		} else {
 			$candidate = $candidate[0];
 		}
@@ -405,7 +407,9 @@ sort($namesWithCandidates);
 
 $output = '';
 foreach ($namesWithCandidates as $name) {
-	$output .= 'use '.$name.";\n";
+	if (strlen($name) > 0) {
+		$output .= 'use '.$name.";\n";
+	}
 }
 
 $src = file($inputFile);
