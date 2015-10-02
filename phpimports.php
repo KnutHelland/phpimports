@@ -302,7 +302,6 @@ function validateFile($tree) {
 	} else if (count($namespaces) > 1) {
 		throw new InvalidSourceException('Multiple namespaces in file');
 	}
-	
 
 	$data = array(
 		'beginUses' => null,
@@ -321,10 +320,11 @@ function validateFile($tree) {
 				throw new InvalidSourceException('The use statements are not in one section');
 			}
 			$return = false;
+			$data['endLine'] = $node->getAttribute('startLine') + 1;
 		} else {
 			if (!is_null($data['beginUses']) && is_null($data['endUses'])) {
 				$data['endUses'] = $i-1;
-				$data['endLine'] = $node->getAttribute('startLine')-1;
+				// $data['endLine'] = $node->getAttribute('startLine')-1;
 			}
 		}
 		$i++;
