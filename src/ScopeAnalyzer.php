@@ -6,12 +6,6 @@ use PhpParser\NodeTraverser;
 use PhpParser\Node;
 use PhpParser\NodeVisitorAbstract;
 
-/*
- * ScopeAnalyzer -> Analyzes the AST
- * DependencyResolver -> Resolves the missing classes
- * Refactorer -> Refactors the AST and can output a pretty printed file with new uses
- */
-
 class ExtractNames extends NodeVisitorAbstract
 {
     /**
@@ -56,7 +50,7 @@ class ExtractNames extends NodeVisitorAbstract
 
         if (isset($node->params)) {
             foreach ($node->params as $param) {
-                if ($param->type) {
+                if ($param->type && !is_string($param->type)) {
                     if ($param->type->getType() != 'Name_FullyQualified') {
                         $this->names[] = $param->type;
                     }

@@ -39,7 +39,11 @@ if (!function_exists('dd')) {
 if (!function_exists('pp')) {
     function pp($nodes)
     {
-        static $prettyPrinter = new PrettyPrinter\Standard;
+        static $prettyPrinter;
+
+        if (!$prettyPrinter) {
+            $prettyPrinter = new PrettyPrinter\Standard;
+        }
 
         if (!is_array($nodes)) {
             $nodes = func_get_args();

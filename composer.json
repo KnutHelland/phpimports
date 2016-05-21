@@ -6,5 +6,8 @@
         "psr-4": {
             "PhpImports\\": "src/"
         }
-    }
+    },
+    "bin": [
+        "bin/phpimports"
+    ]
 }
