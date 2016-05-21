@@ -16,18 +16,26 @@ $inputFile = $argv[1];
 
 require dirname(__FILE__).'/vendor/autoload.php';
 
+/**
+ * Returns project root path. The root is where composer.json is defined
+ */
 function findProject($filename) {
 	$filename = realpath($filename);
+
 	if ($filename == '/') {
 		return null;
 	}
-	if (file_exists(dirname($filename).'/.phpimports')) {
-		return dirname($filename).'/.phpimports';
+
+	if (file_exists(dirname($filename). '/composer.json' )) {
+		return dirname($filename);
 	}
+
 	return findProject(dirname($filename));
 }
 
-
+/**
+ * Returns the parsed AST
+ */
 function getSourceTree($src) {
 	$lexer = new PHPParser_Lexer;
 	$parser = new PHPParser_Parser($lexer);
@@ -43,7 +51,7 @@ function getSourceTree($src) {
  * Childs of returned nodes are not evaluated
  */
 function getNodesByType($tree, $nodeType) {
-	return getNodesByTypes($tree, array($nodeType));
+	return getNodesByTypes($tree, [ $nodeType ]);
 }
 
 function getNodesByTypes($tree, array $nodeTypes) {
@@ -166,8 +174,10 @@ function getClassNamesFromStaticCalls($tree) {
 
 
 // What dependencies are available?
-$config = include findProject($inputFile);
-$classmap = $config['classmap'];
+// $config = include findProject($inputFile);
+// $classmap = $config['classmap'];
+
+
 
 
 // $names = array_map(function($call) { return implode('\\', $call->class->parts); }, getNodesByType($tree, 'PHPParser_Node_Expr_StaticCall'));
@@ -229,6 +239,13 @@ $names = array_filter($names, function($name) use ($fromNamespace) { return !in_
  */
 
 
+
+
+// Evaluate the autoload file
+$autoloader = include findProject($inputFile) . '/vendor/autoload.php';
+$classmap = $autoloader->getClassMap();
+
+
 /**
  * Returns list of candidates from classmap for each of the names
  */
@@ -272,6 +289,7 @@ function getCandidates($names, $classmap) {
 
 $names = getCandidates($names, $classmap);
 $namesWithCandidates = $names;
+
 $names = array_map(
 	function($name) { return $name[0]; },
 	$names);
@@ -429,4 +447,3 @@ if ($argv[2] == '-w') {
 // dumpNode($tree);
 
 // var_dump(getUseStatements(getSourceTree(file_get_contents(__FILE__))));
-
