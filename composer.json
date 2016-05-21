@@ -1,4 +1,6 @@
 {
+    "name": "knuthelland/phpimports",
+    "description": "Automatically insert use statements in php files",
     "require": {
         "nikic/php-parser": "^2.1"
     },
