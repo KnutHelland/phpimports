@@ -11,7 +11,6 @@ use PhpParser\Node\Stmt\UseUse;
 use PhpParser\NodeVisitorAbstract;
 use PhpParser\PrettyPrinter;
 
-
 class UseRemover extends NodeVisitorAbstract
 {
     private $aliasesToRemove;
@@ -58,7 +57,6 @@ class SortUse extends NodeVisitorAbstract
     public function enterNode(Node $node)
     {
         if ($node->getType() == 'Stmt_Namespace') {
-
             $firstUseIndex;
             $useStmts = [];
             $indexes = [];
@@ -76,12 +74,12 @@ class SortUse extends NodeVisitorAbstract
 
             if (count($useStmts)) {
                 // Remove the statements
-                $node->stmts = array_filter($node->stmts, function($node) {
+                $node->stmts = array_filter($node->stmts, function ($node) {
                     return $node->getType() != 'Stmt_Use';
                 });
 
                 // Sort statements
-                usort($useStmts, function($a, $b) {
+                usort($useStmts, function ($a, $b) {
                     $aParts = count($a->uses[0]->name->parts);
                     $bParts = count($b->uses[0]->name->parts);
 
@@ -98,7 +96,6 @@ class SortUse extends NodeVisitorAbstract
                 // Insert them again
                 array_splice($node->stmts, $firstUseIndex, 0, $useStmts);
             }
-
         }
     }
 }
@@ -110,7 +107,6 @@ class Statistics extends NodeVisitorAbstract
     public function enterNode(Node $node)
     {
         if ($node->getType() == 'Stmt_Namespace') {
-
             foreach ($node->stmts as $i => $stmt) {
                 if ($stmt->getType() == 'Stmt_Use') {
                     $this->lastUse = $stmt;
@@ -145,10 +141,8 @@ class AddUse extends NodeVisitorAbstract
     public function enterNode(Node $node)
     {
         if ($node->getType() == 'Stmt_Namespace') {
-
             array_unshift($node->stmts, $this->node);
             return NodeTraverser::DONT_TRAVERSE_CHILDREN;
-
         }
     }
 }

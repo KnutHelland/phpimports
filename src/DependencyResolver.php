@@ -25,16 +25,13 @@ class DependencyResolver
         $resolutions = [];
 
         foreach ($names as $name) {
-
             foreach (array_keys($classMap) as $className) {
-
                 $search = $name->toString();
 
                 $pos = strpos($className, $search);
 
                 // If the className ends with $search
                 if ($pos === (strlen($className) - strlen($search))) {
-
                     if (!isset($resolutions[$search])) {
                         $resoultions[$search] = [];
                     }
@@ -42,20 +39,17 @@ class DependencyResolver
                     $resolution = substr($className, 0, $pos + strlen($name->getFirst()));
                     $resolutions[$search][] = $resolution;
                 }
-
             }
-
         }
 
         foreach ($resolutions as &$candidates) {
-
             $candidates = array_unique($candidates);
 
             if (count($candidates) > 0) {
                 // Match those in this current namespace first
                 // Then take the shallowest
 
-                usort($candidates, function($a, $b) {
+                usort($candidates, function ($a, $b) {
 
                     $aParts = count(explode('\\', $a));
                     $bParts = count(explode('\\', $b));
@@ -66,11 +60,10 @@ class DependencyResolver
 
                     return $aParts < $bParts ? -1 : 1;
                 });
-
             }
         }
 
-        $resolutions = array_map(function($candidates) {
+        $resolutions = array_map(function ($candidates) {
             return $candidates[0];
         }, $resolutions);
 
@@ -96,6 +89,4 @@ class DependencyResolver
     {
         return $this->autoloader->getClassMap();
     }
-
-
 }

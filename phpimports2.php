@@ -97,7 +97,7 @@ $resolutions = $resolver->resolve($analyzed->getUnresolvedNames());
 
 $refactorer = new Refactorer($sourceCode, $ast);
 
-$useAliases = array_map(function($useUse) {
+$useAliases = array_map(function ($useUse) {
     return $useUse->alias;
 }, $analyzed->getUnusedUses());
 

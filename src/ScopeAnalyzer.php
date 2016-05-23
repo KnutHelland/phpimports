@@ -71,7 +71,8 @@ class ScopeAnalyzer
 
     private $visitor;
 
-    public function __construct(array $ast) {
+    public function __construct(array $ast)
+    {
         $this->ast = $ast;
 
         $this->visitor = new ExtractNames;
@@ -89,11 +90,11 @@ class ScopeAnalyzer
     {
         $names = $this->visitor->names;
 
-        $aliases = array_map(function($use) {
+        $aliases = array_map(function ($use) {
             return $use->alias;
         }, $this->visitor->uses);
 
-        $names = array_filter($this->visitor->names, function($name) use ($aliases) {
+        $names = array_filter($this->visitor->names, function ($name) use ($aliases) {
             return !in_array($name->parts[0], $aliases);
         });
 
@@ -107,11 +108,11 @@ class ScopeAnalyzer
      */
     public function getUnusedUses()
     {
-        $names = array_map(function($name) {
+        $names = array_map(function ($name) {
             return $name->parts[0];
         }, $this->visitor->names);
 
-        return array_filter($this->visitor->uses, function($use) use ($names) {
+        return array_filter($this->visitor->uses, function ($use) use ($names) {
             return !in_array($use->alias, $names);
         });
     }
